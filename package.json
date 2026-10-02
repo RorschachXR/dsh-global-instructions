@@ -1,0 +1,38 @@
+{
+  "name": "dsh-global-instructions",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Settings page that reads and saves the user-global AGENTS.md ($DSH_HOME/AGENTS.md) from the Harness Web UI",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "icon.svg",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  },
+  "meta": {
+    "title": "Global instructions",
+    "description": "Edit and save the user-global AGENTS.md that applies to every session."
+  },
+  "icon": "./icon.svg"
+}

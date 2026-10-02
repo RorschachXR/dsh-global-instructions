@@ -1,0 +1,6 @@
+# Bundle layer for dsh-global-instructions: one Host entry owning the
+# globalInstructions Remote namespace and the Settings page that edits
+# $DSH_HOME/AGENTS.md.
+- insert:
+    - id: global-instructions
+      name: 'dsh-global-instructions'
