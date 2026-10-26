@@ -1,77 +1,105 @@
 # dsh-global-instructions
 
-A **Harness Web UI** settings page that reads and saves the *user-global*
-instruction file, `$DSH_HOME/AGENTS.md` — the file
-`@deepseek-ai/dsh-agent-instructions` loads for every session, the closest
-equivalent of Codex's global custom instructions.
+English | [简体中文](#简体中文)
 
-Target of this plugin is the **browser Web UI** (`dsh web` / the page at
-`http://127.0.0.1:<port>`), not the Electron shell: the client half is a
-`window.__ModuleLoader__` bundle declared with `dsh.client.platform: "web"`, and
-it registers into the same `settings.section` slot the shipped Settings panel
-declares. It touches no desktop-only API (`__DSH_HOST_PATHS__`, preload, IPC).
+A **Settings → Global instructions** page in the DeepSeek Harness Web UI that reads and saves the
+user-global instruction file `$DSH_HOME/AGENTS.md` — the file injected into every new session.
 
-## Where it appears
+## What you get
 
-Settings → **全局指令** / **Global instructions**, as its own page after the
-shipped General / Models / Plugins / Agent presets pages (`order: 60`).
-
-The page shows the resolved file path, a full-height editor for the file, and a
-byte counter against the instruction budget (65,536 bytes by default). **Save**
-writes the file atomically; **Reload** discards the draft and re-reads the file;
-Ctrl/Cmd+S saves. A save above the budget is refused with the measured size
-instead of silently truncating.
-
-Because `dsh-agent-instructions` is touch-driven, a save becomes visible to
-sessions the same way an external edit does: the next eligible `agent/pre-step`
-of a new session loads the file, and an existing session picks it up after a
-successful first-party `read`/`write`/`edit` or on resume.
-
-## Package shape
-
-| Face | File | Role |
-|---|---|---|
-| Host half | `lib/index.js` | Registers the `globalInstructions` service with Cordis `ctx.provide` and the Typert Remote markers; the Gateway's SRC fallback makes it callable. No dependency on dsh packages. |
-| Browser half | `lib/client.js` | Hand-written `window.__ModuleLoader__.load` bundle: mounts the Remote contribution, registers the locale dictionary and the Settings section. |
-| Bundle layer | `cordis.patch.yml` | Inserts the `global-instructions` Host row. |
-| Tests | `test/service.test.mjs`, `test/client.test.mjs` | Host service contract (atomic replace, budget refusal, empty-file semantics, `typertRemote` binding, marker descriptor) and browser-half contract (module entry, contribution, namespace lookup, both halves over a real file). |
-
-### Why the section resolves its namespace with `ctx.get`
-
-The plugin mints `remote.globalInstructions` itself through `ctx.remote.$mount`, so
-the namespace is installed in the mount's fiber — a sibling of this plugin's
-context, not an ancestor. Cordis resolves ordinary property access
-(`ctx.remote.globalInstructions`) only along the accessing fiber's ancestor chain
-and otherwise throws `cannot get property "..." without inject`; a plugin cannot
-list a namespace it creates in the static `inject` array it must satisfy before
-`apply` runs. `ctx.get(name)` is the documented "read a service from the store
-without the inject requirement" path, and is the same optional-access seam other
-client plugins use (`ctx.get('sessions')` in `dsh-workspace-folder-drop`).
-`test/client.test.mjs` enforces this: its fake context throws the Cordis inject
-error on property access, so the regression fails in Node instead of only in the
-browser.
-
-## Configuration
-
-The row accepts `dshHome` (defaults to `$DSH_HOME` or `~/.dsh`) and `maxBytes`
-(defaults to 65536).
+- **Settings → Global instructions**: the resolved file path, a full-height editor, and a byte
+  counter against the instruction budget (65,536 bytes by default).
+- **Save** writes the file atomically; **Reload** discards the draft and re-reads it;
+  <kbd>Ctrl/Cmd</kbd>+<kbd>S</kbd> saves.
+- A save over the budget is refused and reports the measured size instead of truncating silently.
+- The text applies to **every new session in every workspace**. A project-level `AGENTS.md`
+  takes precedence over it.
+- An existing session picks the change up the same way it picks up an external edit: lazily, on
+  a later model step, or on resume.
 
 ## Install
 
-From the profile that should carry it:
+Requires the browser Web UI (`dsh web`) or the Desktop app — both profiles are separate, so
+install into the one you use.
+
+From the client: **Plugins** → install → paste
 
 ```
-dsh plugin --profile <profile> add link:<absolute path to this folder>
+github:RorschachXR/dsh-global-instructions
 ```
 
-then select the bundle in the profile's `dsh.profile.bundles` (or install it
-through the Plugin Manager, which does both).
-
-## Verify
+Or from a terminal:
 
 ```sh
-node test/service.test.mjs   # host service: atomic replace, budget, binding, markers
-node test/client.test.mjs    # browser half: module entry, namespace lookup, both halves
+dsh plugin --profile web add github:RorschachXR/dsh-global-instructions
 ```
 
-Both tests use only Node built-ins — no dependencies and no build step.
+Restart the host afterwards. On the Desktop app, install from **Settings → Plugins** rather
+than the CLI, which does not change the app's profile while it is running.
+
+## Configuration (optional)
+
+| Field | Default | Meaning |
+|---|---|---|
+| `dshHome` | `$DSH_HOME` or `~/.dsh` | Harness config root; its `AGENTS.md` is the edited file |
+| `maxBytes` | `65536` | Instruction budget; a longer save is refused |
+
+## Uninstall
+
+```sh
+dsh plugin --profile web remove dsh-global-instructions
+```
+
+Your `AGENTS.md` is left untouched.
+
+---
+
+## 简体中文
+
+DeepSeek Harness Web UI 里的一页 **设置 → 全局指令**，用来读写**用户全局**指令文件
+`$DSH_HOME/AGENTS.md`——也就是注入到每个新会话的那份文件。
+
+### 开启后你会得到
+
+- **设置 → 全局指令**：显示解析后的文件路径、占满高度的编辑器，以及对照指令预算
+  （默认 65,536 字节）的字节计数。
+- **保存**原子写入；**重新加载**丢弃草稿并重新读取；<kbd>Ctrl/Cmd</kbd>+<kbd>S</kbd> 保存。
+- 超出预算的保存会被拒绝并给出实测字节数，不会悄悄截断。
+- 内容对**所有工作区的新会话**生效。项目目录里的 `AGENTS.md` 优先级更高，会覆盖这里的内容。
+- 已存在的会话按与外部编辑相同的方式生效：稍后的模型步骤或恢复会话时才重新读取。
+
+### 安装
+
+需要浏览器 Web UI（`dsh web`）或桌面应用——两者 profile 各自独立，装到你用的那一个。
+
+在客户端里：**插件** → 安装 → 粘贴
+
+```
+github:RorschachXR/dsh-global-instructions
+```
+
+或在终端：
+
+```sh
+dsh plugin --profile web add github:RorschachXR/dsh-global-instructions
+```
+
+装好后重启 host。桌面应用请从 **设置 → 插件** 安装，而不是命令行——应用运行时 CLI
+不会改动它的 profile。
+
+### 配置（可选）
+
+| 字段 | 默认值 | 含义 |
+|---|---|---|
+| `dshHome` | `$DSH_HOME` 或 `~/.dsh` | harness 配置根，其下 `AGENTS.md` 就是被编辑的文件 |
+| `maxBytes` | `65536` | 指令预算，超出的保存会被拒绝 |
+
+### 卸载
+
+```sh
+dsh plugin --profile web remove dsh-global-instructions
+```
+
+你的 `AGENTS.md` 不会被删除。
+
+> 已在 DSH 0.2.1-rc.3 上安装验证。
